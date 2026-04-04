@@ -1,9 +1,9 @@
 # Backtest Metrics
 - **Initial Balance**: $1000
-- **Final Balance**: $874.38
-- **Total PnL**: $-125.62
-- **Number of Trades**: 27
-- **Wins**: 11
-- **Losses**: 16
-- **Win Rate**: 40.74%
-- **Max Drawdown**: 16.36%
+- **Final Balance**: $803.35
+- **Total PnL**: $-196.65
+- **Number of Trades**: 331
+- **Wins**: 193
+- **Losses**: 138
+- **Win Rate**: 58.31%
+- **Max Drawdown**: 35.19%
