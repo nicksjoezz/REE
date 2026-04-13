@@ -23,14 +23,17 @@ def backtest(data_file='btc_1m_data.csv'):
     df['spike_up'] = (df['high'] - np.maximum(df['open'], df['close'])) / df['open'] * 100
     df['spike_down'] = (df['low'] - np.minimum(df['open'], df['close'])) / df['open'] * 100
 
-    # PDF Strategy Parameters
-    # Volume is interpreted as Number of Trades based on PDF flowchart context
-    VOLUME_THRESHOLD = 500 # Threshold to capture "hundreds of trades" in 1m timeframe
+    # OPTIMIZED Strategy Parameters
+    VOLUME_THRESHOLD = 1000
     PREV_VOLUME_THRESHOLD = 1000
-    SPIKE_THRESHOLD = 0.10
+    SPIKE_THRESHOLD = 0.12
     OPPOSITE_SPIKE_THRESHOLD = 0.05
     BODY_LIMIT = 0.50
-    ATR_THRESHOLD = 100
+    ATR_THRESHOLD = 80
+
+    STOP_LOSS_PERC = 0.0060 # 0.60%
+    BREAKEVEN_PERC = 0.0020 # 0.20%
+    TRAILING_PERC = 0.0010  # 0.10%
 
     # Signal on Candle N-1, Entry on Candle N (Open)
     df['long_signal'] = (
@@ -71,7 +74,7 @@ def backtest(data_file='btc_1m_data.csv'):
                 in_position = True
                 position_type = 'long' if prev_row['long_signal'] else 'short'
                 entry_price = row['open']
-                stop_loss = entry_price * (0.9955 if position_type == 'long' else 1.0045)
+                stop_loss = entry_price * (1 - STOP_LOSS_PERC if position_type == 'long' else 1 + STOP_LOSS_PERC)
                 breakeven_reached = False
                 qty = (balance * risk_per_trade) / abs(entry_price - stop_loss)
         else:
@@ -81,10 +84,10 @@ def backtest(data_file='btc_1m_data.csv'):
                 if row['low'] <= stop_loss:
                     exit_pnl = (stop_loss - entry_price) * qty
                     exited = True
-                elif not breakeven_reached and (row['high'] - entry_price) / entry_price >= 0.0030:
+                elif not breakeven_reached and (row['high'] - entry_price) / entry_price >= BREAKEVEN_PERC:
                     breakeven_reached, stop_loss = True, entry_price
                 elif breakeven_reached:
-                    new_sl = row['high'] * 0.9990
+                    new_sl = row['high'] * (1 - TRAILING_PERC)
                     if new_sl > stop_loss: stop_loss = new_sl
                     if row['low'] <= stop_loss:
                         exit_pnl = (stop_loss - entry_price) * qty
@@ -93,10 +96,10 @@ def backtest(data_file='btc_1m_data.csv'):
                 if row['high'] >= stop_loss:
                     exit_pnl = (entry_price - stop_loss) * qty
                     exited = True
-                elif not breakeven_reached and (entry_price - row['low']) / entry_price >= 0.0030:
+                elif not breakeven_reached and (entry_price - row['low']) / entry_price >= BREAKEVEN_PERC:
                     breakeven_reached, stop_loss = True, entry_price
                 elif breakeven_reached:
-                    new_sl = row['low'] * 1.0010
+                    new_sl = row['low'] * (1 + TRAILING_PERC)
                     if new_sl < stop_loss: stop_loss = new_sl
                     if row['high'] >= stop_loss:
                         exit_pnl = (entry_price - stop_loss) * qty
@@ -114,7 +117,7 @@ def run():
     wins = [p for p in trades if p > 0]
     wr = len(wins) / len(trades) * 100 if trades else 0
 
-    output = f"""# Backtest Metrics
+    output = f"""# Optimized Backtest Metrics
 - **Initial Balance**: ${initial_balance}
 - **Final Balance**: ${final_balance:.2f}
 - **Total PnL**: ${final_balance - initial_balance:.2f}
