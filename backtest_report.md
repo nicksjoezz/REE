@@ -1,27 +1,30 @@
-# Optimized Volume Strategy Backtest Report
+# Profit-Optimized Volume Strategy Backtest Report
 
 ## Strategy Overview
-This strategy aims to capture short-term price reactions on the BTCUSDT 1-minute timeframe. It has been optimized using a grid search to maximize win rate and minimize drawdown by identifying higher-confidence rejection signals.
+This strategy aims to capture short-term price reactions on the BTCUSDT 1-minute timeframe. It has been optimized specifically for **Total PnL** and **Profit Factor**, addressing the previous issue where a high win rate did not translate into significant profits.
+
+## Optimization Strategy
+The previous high-win-rate version (74%) had an "Avg Win" ($6) much smaller than its "Avg Loss" ($20). We optimized the exit parameters to allow winning trades more room to breathe, improving the Reward-to-Risk ratio.
 
 ## Optimized Parameters
 - **Trades**: > 1000 per minute.
-- **Previous Trades**: < 1000 per minute.
-- **Wick (Spike)**: > 0.12% rejection.
-- **Opposite Wick**: < 0.05%.
-- **ATR (14)**: < 80.
+- **Wick (Spike)**: > 0.10% rejection.
+- **ATR (14)**: < 100.
 
 ## Optimized Exit & Risk Management
-- **Initial Stop Loss**: 0.60% (Increased from 0.45% to allow for more breathing room).
-- **Move to Breakeven**: When profit reaches +0.20%.
-- **Trailing Stop**: 0.1% trailing.
+- **Initial Stop Loss**: 0.50%.
+- **Move to Breakeven**: **+0.80%** (Increased from 0.20%).
+- **Trailing Stop**: **0.40%** (Increased from 0.10%).
 
 ## Historical Data
 - **Period**: 6 months (Oct 2023 - Mar 2024).
 
-## Optimized Backtest Results
-- **Win Rate**: 74.69% (121 wins, 41 losses).
-- **Number of Trades**: 162.
-- **Max Drawdown**: 11.88%.
+## Backtest Results
+- **Net Profit**: **+$1520.99** (on a $1000 initial balance).
+- **Final Balance**: $2520.99.
+- **Number of Trades**: 277.
+- **Win Rate**: 46.21%.
+- **Max Drawdown**: 26.23%.
 
 ## Conclusion
-The optimized parameters significantly improved the strategy's stability and win rate. By raising the trade count and spike thresholds, we filtered out weaker signals, leading to more reliable reversal captures. The increased stop-loss distance (0.60%) combined with an earlier breakeven trigger (0.20%) proved effective in protecting capital while capturing the 0.30%+ reactions common to this setup.
+By widening the exit parameters, we successfully transformed the strategy from a high-win-rate/low-profit setup into a highly profitable system. The strategy now allows winning trades to develop into significant gains (+0.80% or more), which more than compensates for the moderate 46% win rate. This demonstrates the critical importance of the Reward-to-Risk ratio in high-frequency trading.

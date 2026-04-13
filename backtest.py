@@ -23,17 +23,17 @@ def backtest(data_file='btc_1m_data.csv'):
     df['spike_up'] = (df['high'] - np.maximum(df['open'], df['close'])) / df['open'] * 100
     df['spike_down'] = (df['low'] - np.minimum(df['open'], df['close'])) / df['open'] * 100
 
-    # OPTIMIZED Strategy Parameters
+    # PROFIT-OPTIMIZED Strategy Parameters
     VOLUME_THRESHOLD = 1000
     PREV_VOLUME_THRESHOLD = 1000
-    SPIKE_THRESHOLD = 0.12
+    SPIKE_THRESHOLD = 0.10
     OPPOSITE_SPIKE_THRESHOLD = 0.05
     BODY_LIMIT = 0.50
-    ATR_THRESHOLD = 80
+    ATR_THRESHOLD = 100
 
-    STOP_LOSS_PERC = 0.0060 # 0.60%
-    BREAKEVEN_PERC = 0.0020 # 0.20%
-    TRAILING_PERC = 0.0010  # 0.10%
+    STOP_LOSS_PERC = 0.0050 # 0.50%
+    BREAKEVEN_PERC = 0.0080 # 0.80% - Allowing winners to run
+    TRAILING_PERC = 0.0040  # 0.40% - Wider trail for more breathing room
 
     # Signal on Candle N-1, Entry on Candle N (Open)
     df['long_signal'] = (
@@ -117,7 +117,7 @@ def run():
     wins = [p for p in trades if p > 0]
     wr = len(wins) / len(trades) * 100 if trades else 0
 
-    output = f"""# Optimized Backtest Metrics
+    output = f"""# Profit-Optimized Backtest Metrics
 - **Initial Balance**: ${initial_balance}
 - **Final Balance**: ${final_balance:.2f}
 - **Total PnL**: ${final_balance - initial_balance:.2f}

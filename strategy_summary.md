@@ -1,7 +1,7 @@
-# Optimized Volume Strategy Summary
+# Profit-Optimized Volume Strategy Summary
 
 ## Overview
-An optimized high-frequency trading strategy for BTCUSDT on the 1-minute timeframe, focusing on trade-volume spikes and candle wicks (rejections) in very low volatility environments.
+A high-frequency trading strategy for BTCUSDT on the 1-minute timeframe, optimized for **Total PnL** and **Profit Factor**. It identifies trade-volume spikes and candle wicks (rejections) while allowing profitable trades to run further using wider exit parameters.
 
 ## Timeframe
 - 1 Minute (1m)
@@ -11,28 +11,28 @@ An optimized high-frequency trading strategy for BTCUSDT on the 1-minute timefra
 - **ATR (14)**: Used as a volatility filter.
 - **Wicks (Spikes)**: Percentage of the high/low relative to the candle body.
 
-## Optimized Entry Conditions (Signal candle N-1, Entry at open of candle N)
+## Entry Conditions (Signal candle N-1, Entry at open of candle N)
 
 ### Long Entry
 - **Signal Candle Criteria**:
-  - `Lower Wick > 0.12%` (rejection from below)
+  - `Lower Wick > 0.10%` (rejection from below)
   - `Upper Wick < 0.05%` (minimal rejection from above)
   - `Body > -0.50%` (avoid massive red candles)
   - `Number of Trades > 1000`
   - `Previous Trades < 1000`
-  - `ATR(14) < 80`
+  - `ATR(14) < 100`
 
 ### Short Entry
 - **Signal Candle Criteria**:
-  - `Upper Wick > 0.12%` (rejection from above)
+  - `Upper Wick > 0.10%` (rejection from above)
   - `Lower Wick < 0.05%` (minimal rejection from below)
   - `Body < 0.50%` (avoid massive green candles)
   - `Number of Trades > 1000`
   - `Previous Trades < 1000`
-  - `ATR(14) < 80`
+  - `ATR(14) < 100`
 
-## Optimized Exit Conditions & Risk Management
-- **Initial Stop Loss**: 0.60% from entry price.
-- **Move to Breakeven**: When price reaches **+0.20%** profit.
-- **Trailing Stop**: 0.1% trailing from the candle high/low after breakeven is reached.
-- **Position Sizing**: 2% of balance at risk per trade.
+## Exit Conditions & Risk Management
+- **Initial Stop Loss**: **0.50%** from entry price.
+- **Move to Breakeven**: When price reaches **+0.80%** profit (Wider trigger to allow for volatility).
+- **Trailing Stop**: **0.40%** trailing offset (Wider trail to capture larger moves).
+- **Position Sizing**: 2% of balance at risk per trade ($20 risk initially).

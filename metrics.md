@@ -1,9 +1,9 @@
-# Optimized Backtest Metrics
+# Profit-Optimized Backtest Metrics
 - **Initial Balance**: $1000
-- **Final Balance**: $973.42
-- **Total PnL**: $-26.58
-- **Number of Trades**: 162
-- **Wins**: 121
-- **Losses**: 41
-- **Win Rate**: 74.69%
-- **Max Drawdown**: 11.88%
+- **Final Balance**: $2520.99
+- **Total PnL**: $1520.99
+- **Number of Trades**: 277
+- **Wins**: 128
+- **Losses**: 149
+- **Win Rate**: 46.21%
+- **Max Drawdown**: 26.23%
