@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import os
 
 def calculate_atr(df, n=14):
     df = df.copy()
@@ -11,19 +12,16 @@ def calculate_atr(df, n=14):
     atr = true_range.rolling(n).mean()
     return atr
 
-def backtest(data_file='btc_1m_data.csv'):
-    try:
-        df = pd.read_csv(data_file)
-    except FileNotFoundError:
-        print(f"Error: {data_file} not found.")
-        return [], 0, 0, 0
-
+def prepare_data(data_file='btc_1m_data.csv'):
+    if not os.path.exists(data_file):
+        return None
+    df = pd.read_csv(data_file)
     df['atr'] = calculate_atr(df, 14)
     df['body_perc'] = (df['close'] - df['open']) / df['open'] * 100
     df['spike_up'] = (df['high'] - np.maximum(df['open'], df['close'])) / df['open'] * 100
     df['spike_down'] = (df['low'] - np.minimum(df['open'], df['close'])) / df['open'] * 100
 
-    # PROFIT-OPTIMIZED Strategy Parameters
+    # Strategy Parameters (Consistent across versions)
     VOLUME_THRESHOLD = 1000
     PREV_VOLUME_THRESHOLD = 1000
     SPIKE_THRESHOLD = 0.10
@@ -31,11 +29,6 @@ def backtest(data_file='btc_1m_data.csv'):
     BODY_LIMIT = 0.50
     ATR_THRESHOLD = 100
 
-    STOP_LOSS_PERC = 0.0050 # 0.50%
-    BREAKEVEN_PERC = 0.0080 # 0.80% - Allowing winners to run
-    TRAILING_PERC = 0.0040  # 0.40% - Wider trail for more breathing room
-
-    # Signal on Candle N-1, Entry on Candle N (Open)
     df['long_signal'] = (
         (df['spike_down'] < -SPIKE_THRESHOLD) &
         (df['spike_up'] < OPPOSITE_SPIKE_THRESHOLD) &
@@ -53,83 +46,146 @@ def backtest(data_file='btc_1m_data.csv'):
         (df['trades'].shift(1) < PREV_VOLUME_THRESHOLD) &
         (df['atr'] < ATR_THRESHOLD)
     )
+    return df
 
-    initial_balance = 1000
-    balance = initial_balance
+def backtest_dynamic(df):
+    balance = 1000
     risk_per_trade = 0.02
     trades = []
-    in_position = False
-    peak_balance = balance
-    max_drawdown = 0
+    in_pos = False
+    peak = balance
+    mdd = 0
+
+    STOP_LOSS_PERC = 0.0050
+    BREAKEVEN_PERC = 0.0080
+    TRAILING_PERC = 0.0040
 
     for i in range(1, len(df)):
         row = df.iloc[i]
-        prev_row = df.iloc[i-1]
+        prev = df.iloc[i-1]
+        peak = max(peak, balance)
+        mdd = max(mdd, (peak - balance) / peak if peak > 0 else 0)
 
-        peak_balance = max(peak_balance, balance)
-        max_drawdown = max(max_drawdown, (peak_balance - balance) / peak_balance if peak_balance > 0 else 0)
-
-        if not in_position:
-            if prev_row['long_signal'] or prev_row['short_signal']:
-                in_position = True
-                position_type = 'long' if prev_row['long_signal'] else 'short'
-                entry_price = row['open']
-                stop_loss = entry_price * (1 - STOP_LOSS_PERC if position_type == 'long' else 1 + STOP_LOSS_PERC)
-                breakeven_reached = False
-                qty = (balance * risk_per_trade) / abs(entry_price - stop_loss)
+        if not in_pos:
+            if prev['long_signal'] or prev['short_signal']:
+                in_pos = True
+                p_type = 'long' if prev['long_signal'] else 'short'
+                entry = row['open']
+                sl = entry * (1 - STOP_LOSS_PERC if p_type == 'long' else 1 + STOP_LOSS_PERC)
+                be_reached = False
+                qty = (balance * risk_per_trade) / abs(entry - sl)
         else:
-            exit_pnl = 0
-            exited = False
-            if position_type == 'long':
-                if row['low'] <= stop_loss:
-                    exit_pnl = (stop_loss - entry_price) * qty
-                    exited = True
-                elif not breakeven_reached and (row['high'] - entry_price) / entry_price >= BREAKEVEN_PERC:
-                    breakeven_reached, stop_loss = True, entry_price
-                elif breakeven_reached:
+            pnl = 0
+            exit_now = False
+            if p_type == 'long':
+                if row['low'] <= sl:
+                    pnl = (sl - entry) * qty
+                    exit_now = True
+                elif not be_reached and (row['high'] - entry) / entry >= BREAKEVEN_PERC:
+                    be_reached, sl = True, entry
+                elif be_reached:
                     new_sl = row['high'] * (1 - TRAILING_PERC)
-                    if new_sl > stop_loss: stop_loss = new_sl
-                    if row['low'] <= stop_loss:
-                        exit_pnl = (stop_loss - entry_price) * qty
-                        exited = True
+                    if new_sl > sl: sl = new_sl
+                    if row['low'] <= sl:
+                        pnl = (sl - entry) * qty
+                        exit_now = True
             else:
-                if row['high'] >= stop_loss:
-                    exit_pnl = (entry_price - stop_loss) * qty
-                    exited = True
-                elif not breakeven_reached and (entry_price - row['low']) / entry_price >= BREAKEVEN_PERC:
-                    breakeven_reached, stop_loss = True, entry_price
-                elif breakeven_reached:
+                if row['high'] >= sl:
+                    pnl = (entry - sl) * qty
+                    exit_now = True
+                elif not be_reached and (entry - row['low']) / entry >= BREAKEVEN_PERC:
+                    be_reached, sl = True, entry
+                elif be_reached:
                     new_sl = row['low'] * (1 + TRAILING_PERC)
-                    if new_sl < stop_loss: stop_loss = new_sl
-                    if row['high'] >= stop_loss:
-                        exit_pnl = (entry_price - stop_loss) * qty
-                        exited = True
+                    if new_sl < sl: sl = new_sl
+                    if row['high'] >= sl:
+                        pnl = (entry - sl) * qty
+                        exit_now = True
 
-            if exited:
-                balance += exit_pnl
-                trades.append(exit_pnl)
-                in_position = False
+            if exit_now:
+                balance += pnl
+                trades.append(pnl)
+                in_pos = False
+    return trades, balance, mdd
 
-    return trades, balance, max_drawdown, initial_balance
+def backtest_15_candles(df):
+    balance = 1000
+    risk_per_trade = 0.02
+    trades = []
+
+    STOP_LOSS_PERC = 0.01 # 1% safety SL
+
+    opens = df['open'].values
+    closes = df['close'].values
+    lows = df['low'].values
+    highs = df['high'].values
+    long_signals = df['long_signal'].values
+    short_signals = df['short_signal'].values
+
+    for i in range(1, len(df) - 15):
+        if long_signals[i-1]:
+            entry = opens[i]
+            sl = entry * (1 - STOP_LOSS_PERC)
+            qty = (balance * risk_per_trade) / (entry - sl)
+            pnl = 0
+            hit_sl = False
+            for j in range(i, i + 15):
+                if lows[j] <= sl:
+                    pnl = (sl - entry) * qty
+                    hit_sl = True
+                    break
+            if not hit_sl:
+                pnl = (closes[i+14] - entry) * qty
+            balance += pnl
+            trades.append(pnl)
+        elif short_signals[i-1]:
+            entry = opens[i]
+            sl = entry * (1 + STOP_LOSS_PERC)
+            qty = (balance * risk_per_trade) / (sl - entry)
+            pnl = 0
+            hit_sl = False
+            for j in range(i, i + 15):
+                if highs[j] >= sl:
+                    pnl = (entry - sl) * qty
+                    hit_sl = True
+                    break
+            if not hit_sl:
+                pnl = (entry - closes[i+14]) * qty
+            balance += pnl
+            trades.append(pnl)
+    return trades, balance
 
 def run():
-    trades, final_balance, max_drawdown, initial_balance = backtest()
-    wins = [p for p in trades if p > 0]
-    wr = len(wins) / len(trades) * 100 if trades else 0
+    df = prepare_data()
+    if df is None:
+        return
 
-    output = f"""# Profit-Optimized Backtest Metrics
-- **Initial Balance**: ${initial_balance}
-- **Final Balance**: ${final_balance:.2f}
-- **Total PnL**: ${final_balance - initial_balance:.2f}
-- **Number of Trades**: {len(trades)}
-- **Wins**: {len(wins)}
-- **Losses**: {len(trades) - len(wins)}
-- **Win Rate**: {wr:.2f}%
-- **Max Drawdown**: {max_drawdown*100:.2f}%
-"""
+    # Run Profit-Optimized Dynamic Backtest
+    t_dyn, b_dyn, m_dyn = backtest_dynamic(df)
+    w_dyn = len([p for p in t_dyn if p > 0])
+    l_dyn = len(t_dyn) - w_dyn
+
     with open('metrics.md', 'w') as f:
-        f.write(output)
-    print("Done")
+        f.write(f"# Profit-Optimized Backtest Metrics\n")
+        f.write(f"- **Final Balance**: ${b_dyn:.2f}\n")
+        f.write(f"- **Number of Trades**: {len(t_dyn)}\n")
+        f.write(f"- **Wins**: {w_dyn}\n")
+        f.write(f"- **Losses**: {l_dyn}\n")
+        f.write(f"- **Win Rate**: {w_dyn/len(t_dyn)*100 if t_dyn else 0:.2f}%\n")
+        f.write(f"- **Max Drawdown**: {m_dyn*100:.2f}%\n")
+
+    # Run 15-Candle Fixed Exit Backtest
+    t_15, b_15 = backtest_15_candles(df)
+    w_15 = len([p for p in t_15 if p > 0])
+    l_15 = len(t_15) - w_15
+
+    with open('options.md', 'w') as f:
+        f.write(f"# 15-Candle Exit Backtest Metrics\n")
+        f.write(f"- **Final Balance**: ${b_15:.2f}\n")
+        f.write(f"- **Number of Trades**: {len(t_15)}\n")
+        f.write(f"- **Wins**: {w_15}\n")
+        f.write(f"- **Losses**: {l_15}\n")
+        f.write(f"- **Win Rate**: {w_15/len(t_15)*100 if t_15 else 0:.2f}%\n")
 
 if __name__ == "__main__":
     run()
