@@ -1,0 +1,7 @@
+binance_data/
+*.csv
+*.zip
+*.log
+*.txt
+__pycache__/
+.ipynb_checkpoints/
